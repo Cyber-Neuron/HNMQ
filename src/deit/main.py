@@ -24,7 +24,7 @@ from samplers import RASampler
 from augment import new_data_aug_generator
 
 import models
-import models_v2
+# import models_v2
 
 import utils
 
@@ -154,7 +154,7 @@ def get_args_parser():
     parser.add_argument('--attn-only', action='store_true') 
     
     # Dataset parameters
-    parser.add_argument('--data-path', default='/datasets01/imagenet_full_size/061417/', type=str,
+    parser.add_argument('--data-path', default='~/data/imagenet', type=str,
                         help='dataset path')
     parser.add_argument('--data-set', default='IMNET', choices=['CIFAR', 'IMNET', 'INAT', 'INAT19'],
                         type=str, help='Image Net dataset path')
@@ -410,6 +410,16 @@ def main(args):
                 loss_scaler.load_state_dict(checkpoint['scaler'])
         lr_scheduler.step(args.start_epoch)
     if args.eval:
+        from nmquant.hyper_q import hyper_q_wrap
+        # for n,m in model.named_modules():
+        #     if isinstance(m,torch.nn.Linear):
+        #         print(n,m)
+        model=hyper_q_wrap(model)
+        for n,m in model.named_modules():
+            if isinstance(m,torch.nn.Linear):
+                print(n,m)
+        1/0
+        
         test_stats = evaluate(data_loader_val, model, device)
         print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
         return
@@ -432,6 +442,8 @@ def main(args):
         lr_scheduler.step(epoch)
         if args.output_dir:
             checkpoint_paths = [output_dir / 'checkpoint.pth']
+            if epoch%10==0 or (epoch+1)%10==0:
+                checkpoint_paths.append(output_dir / f'checkpoint_{epoch}.pth')
             for checkpoint_path in checkpoint_paths:
                 utils.save_on_master({
                     'model': model_without_ddp.state_dict(),
